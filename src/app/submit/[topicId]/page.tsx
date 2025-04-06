@@ -3,25 +3,21 @@ import { firestoreDB } from '@/utils/firebaseAdmin';
 import EntryForm from '../../../components/EntryForm';
 import Link from 'next/link';
 
-interface PageProps {
-  params: {
-    topicId: string;
-  };
-}
-
-export default async function SubmitEntryPage({ params }: PageProps) {
+export default async function SubmitEntryPage(
+  props: Awaited<ReturnType<() => Promise<{ params: { topicId: string } }>>>
+) {
+  const { params } = props;
   try {
-    // Fetch the topic to verify it exists and is active
     const topicDoc = await firestoreDB.collection('topics').doc(params.topicId).get();
-    
+
     if (!topicDoc.exists) {
-      redirect('/'); // Redirect to home if topic doesn't exist
+      redirect('/');
     }
 
     const topic = topicDoc.data();
-    
+
     if (!topic?.isActive) {
-      redirect('/'); // Redirect to home if topic is not active
+      redirect('/');
     }
 
     return (
@@ -44,6 +40,6 @@ export default async function SubmitEntryPage({ params }: PageProps) {
     );
   } catch (error) {
     console.error('Error fetching topic:', error);
-    redirect('/'); // Redirect to home on error
+    redirect('/');
   }
-} 
+}

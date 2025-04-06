@@ -3,28 +3,23 @@ import { firestoreDB } from "@/utils/firebaseAdmin";
 import EntriesList from "../../../../components/EntriesList";
 import { isAuthenticated } from "@/utils/serverAuth";
 
-interface PageProps {
-  params: {
-    topicId: string;
-  };
-}
-
-export default async function TopicEntriesPage({ params }: PageProps) {
-  // Check authentication status
+export default async function TopicEntriesPage(
+  props: Awaited<ReturnType<() => Promise<{ params: { topicId: string } }>>>
+) {
+  const { params } = props;
   const authenticated = await isAuthenticated();
 
   if (!authenticated) {
     redirect("/admin/login");
   }
 
-  // Fetch the topic to verify it exists
   const topicDoc = await firestoreDB
     .collection("topics")
     .doc(params.topicId)
     .get();
 
   if (!topicDoc.exists) {
-    redirect("/admin"); // Redirect to admin dashboard if topic doesn't exist
+    redirect("/admin");
   }
 
   const topic = topicDoc.data();
