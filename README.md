@@ -33,6 +33,8 @@ cd capx-assignment
 
 ```bash
 npm install
+# or
+yarn add
 ```
 
 ### Environment Variables
