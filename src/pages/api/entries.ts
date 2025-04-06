@@ -49,13 +49,26 @@ const EntrySchema = z.object({
     .min(1, "Telegram username is required")
     .max(32, "Telegram username is too long")
     .regex(
-      /^[a-zA-Z0-9_]+$/,
-      "Telegram username can only contain letters, numbers, and underscores"
+      /^@[a-zA-Z0-9_]+$/,
+      "Telegram username must start with '@' and can only contain letters, numbers, and underscores after the '@'"
     ),
   platformUsername: z
     .string()
     .min(1, "Platform username is required")
-    .max(50, "Platform username is too long"),
+    .max(50, "Platform username is too long")
+    .refine(
+      (username) => {
+        // Use the same validation rules as in validate-platform-username.ts
+        const hasSpecialChars = /[^a-zA-Z0-9_\.]/.test(username);
+        const isInvalidLength = username.length < 3 || username.length > 20;
+        const startsWithNumber = /^[0-9]/.test(username);
+        
+        return !hasSpecialChars && !isInvalidLength && !startsWithNumber;
+      },
+      {
+        message: "Platform username must be 3-20 characters long, start with a letter, and contain only letters, numbers, underscores, and dots"
+      }
+    ),
   walletAddress: z
     .string()
     .min(1, "Wallet address is required")
@@ -64,8 +77,8 @@ const EntrySchema = z.object({
     .string()
     .max(32, "Discord username is too long")
     .regex(
-      /^[a-zA-Z0-9_]+$/,
-      "Discord username can only contain letters, numbers, and underscores"
+      /^[a-zA-Z0-9_#]+$/,
+      "Discord username can only contain letters, numbers, underscores, and #"
     )
     .optional()
     .or(z.literal("")),

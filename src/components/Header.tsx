@@ -5,36 +5,19 @@ import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 
 export default function Header() {
-  const [isLoading, setIsLoading] = useState(true);
   const pathname = usePathname();
   const router = useRouter();
-  const { isAuthenticated, checkAuthStatus } = useAuth();
-
-  useEffect(() => {
-    const initAuth = async () => {
-      await checkAuthStatus();
-      setIsLoading(false);
-    };
-
-    initAuth();
-  }, [checkAuthStatus]);
-
-  const handleLogout = async () => {
-    try {
-      await fetch("/api/logout", {
-        method: "POST",
-      });
-      await checkAuthStatus(); // Refresh auth status
-      router.push("/admin/login");
-    } catch (error) {
-      console.error("Logout failed:", error);
-    }
-  };
+  const { isAuthenticated, isLoading, logout } = useAuth();
 
   // Don't show header on login page
   if (pathname === "/admin/login") {
     return null;
   }
+
+  const handleLogout = async () => {
+    await logout();
+    router.push("/admin/login");
+  };
 
   return (
     <header className="bg-white shadow-sm">

@@ -1,7 +1,8 @@
+"use client";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/contexts/AuthContext";
 import AdminDashboardClient from "../../components/AdminDashboardClient";
-import { firestoreDB } from "@/utils/firebaseAdmin";
-import { redirect } from "next/navigation";
-import { isAuthenticated } from "@/utils/serverAuth";
 
 interface Topic {
   id: string;
@@ -11,23 +12,49 @@ interface Topic {
   createdAt: number;
 }
 
-export default async function AdminDashboard() {
-  // Check authentication status
-  const authenticated = await isAuthenticated();
+export default function AdminDashboard() {
+  const [initialTopics, setInitialTopics] = useState<Topic[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const router = useRouter();
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
 
-  if (!authenticated) {
-    redirect("/admin/login");
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      router.push("/admin/login");
+      return;
+    }
+
+    // Fetch initial topics
+    const fetchTopics = async () => {
+      try {
+        const response = await fetch("/api/topics");
+        if (response.ok) {
+          const data = await response.json();
+          setInitialTopics(data.topics);
+        }
+      } catch (error) {
+        console.error("Error fetching topics:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (isAuthenticated) {
+      fetchTopics();
+    }
+  }, [isAuthenticated, authLoading, router]);
+
+  if (authLoading || isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
   }
 
-  // Fetch initial topics from the server
-  const topicsSnapshot = await firestoreDB
-    .collection("topics")
-    .orderBy("createdAt", "desc")
-    .get();
-  const initialTopics = topicsSnapshot.docs.map((doc) => ({
-    id: doc.id,
-    ...doc.data(),
-  })) as Topic[];
+  if (!isAuthenticated) {
+    return null; // Will redirect in useEffect
+  }
 
   return (
     <div className="container mx-auto px-4 py-3">

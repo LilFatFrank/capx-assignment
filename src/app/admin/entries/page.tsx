@@ -6,17 +6,14 @@ import EntriesList from "@/components/EntriesList";
 
 export default function AllEntriesPage() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
 
   useEffect(() => {
-    if (!isAuthenticated) {
+    if (!isLoading && !isAuthenticated) {
       router.push("/admin/login");
-    } else {
-      setIsLoading(false);
     }
-  }, [isAuthenticated, router]);
+  }, [isAuthenticated, isLoading, router]);
 
   if (isLoading) {
     return (
@@ -24,6 +21,10 @@ export default function AllEntriesPage() {
         <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
       </div>
     );
+  }
+
+  if (!isAuthenticated) {
+    return null; // Will redirect in useEffect
   }
 
   return (

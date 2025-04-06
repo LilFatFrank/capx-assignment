@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { toast } from "sonner";
 import Link from "next/link";
+import { ErrorBoundary } from './ErrorBoundary';
 
 interface Topic {
   id: string;
@@ -27,8 +28,11 @@ export default function AdminDashboardClient({
   initialTopics,
 }: AdminDashboardClientProps) {
   const [topics, setTopics] = useState<Topic[]>(initialTopics);
+  const [isLoading, setIsLoading] = useState(false);
+  const [operationInProgress, setOperationInProgress] = useState<string | null>(null);
 
   const refreshTopics = async () => {
+    setIsLoading(true);
     try {
       const res = await fetch("/api/topics");
       const data = await res.json();
@@ -38,32 +42,52 @@ export default function AdminDashboardClient({
     } catch (e) {
       console.log(e);
       toast.error("Error refreshing topics!");
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold mb-4">Admin Dashboard</h1>
-      <AddTopicForm onTopicAdded={refreshTopics} />
-      <TopicsList topics={topics} setTopics={setTopics} />
-      <div className="mb-4">
-        <Link 
-          href="/admin/entries"
-          className="text-blue-500 hover:text-blue-700 inline-flex items-center"
-        >
-          View All Entries →
-        </Link>
+    <ErrorBoundary>
+      <div className="space-y-6">
+        <h1 className="text-2xl font-bold mb-4">Admin Dashboard</h1>
+        <AddTopicForm 
+          onTopicAdded={refreshTopics} 
+          isSubmitting={operationInProgress === 'creating'}
+          setOperationInProgress={setOperationInProgress}
+        />
+        <TopicsList 
+          topics={topics} 
+          setTopics={setTopics}
+          isLoading={isLoading}
+          operationInProgress={operationInProgress}
+          setOperationInProgress={setOperationInProgress}
+        />
+        <div className="mb-4">
+          <Link 
+            href="/admin/entries"
+            className="text-blue-500 hover:text-blue-700 inline-flex items-center"
+          >
+            View All Entries →
+          </Link>
+        </div>
       </div>
-    </div>
+    </ErrorBoundary>
   );
 }
 
 function TopicsList({
   topics,
   setTopics,
+  isLoading,
+  operationInProgress,
+  setOperationInProgress,
 }: {
   topics: Topic[];
   setTopics: (topics: Topic[]) => void;
+  isLoading: boolean;
+  operationInProgress: string | null;
+  setOperationInProgress: (operation: string | null) => void;
 }) {
   const [pagination, setPagination] = useState<PaginationInfo>({
     total: 0,
@@ -71,7 +95,6 @@ function TopicsList({
     limit: 10,
     totalPages: 0,
   });
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -92,8 +115,6 @@ function TopicsList({
       setPagination(data.pagination);
     } catch (err) {
       setError("An error occurred! Please try again.");
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -102,6 +123,7 @@ function TopicsList({
   };
 
   const toggleStatus = async (id: string, currentStatus: boolean) => {
+    setOperationInProgress(`toggling-${id}`);
     try {
       const res = await fetch("/api/topics", {
         method: "PATCH",
@@ -115,19 +137,23 @@ function TopicsList({
             topic.id === id ? { ...topic, isActive: !currentStatus } : topic
           )
         );
+        toast.success(`Topic ${!currentStatus ? 'activated' : 'deactivated'} successfully`);
       }
     } catch (e) {
-      toast.error("Error deactivating topic! Something went wrong.");
+      toast.error("Error updating topic status! Something went wrong.");
       console.log(e);
+    } finally {
+      setOperationInProgress(null);
     }
   };
 
   const deleteTopic = async (id: string) => {
-    try {
-      if (!confirm("Are you sure you want to delete this topic?")) {
-        return;
-      }
+    if (!confirm("Are you sure you want to delete this topic?")) {
+      return;
+    }
 
+    setOperationInProgress(`deleting-${id}`);
+    try {
       const res = await fetch("/api/topics", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
@@ -136,14 +162,17 @@ function TopicsList({
       const data = await res.json();
       if (res.ok && !data.error) {
         setTopics(topics.filter((topic) => topic.id !== id));
+        toast.success("Topic deleted successfully");
       }
     } catch (e) {
       toast.error("Error deleting topic! Something went wrong.");
       console.log(e);
+    } finally {
+      setOperationInProgress(null);
     }
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center p-8">
         <div className="text-gray-600">Loading topics...</div>
@@ -204,15 +233,21 @@ function TopicsList({
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 space-x-2">
                     <button
                       onClick={() => toggleStatus(topic.id, topic.isActive)}
-                      className="text-blue-600 hover:text-blue-900 cursor-pointer"
+                      disabled={operationInProgress === `toggling-${topic.id}`}
+                      className={`text-blue-600 hover:text-blue-900 cursor-pointer ${
+                        operationInProgress === `toggling-${topic.id}` ? 'opacity-50 cursor-not-allowed' : ''
+                      }`}
                     >
-                      {topic.isActive ? "Deactivate" : "Activate"}
+                      {operationInProgress === `toggling-${topic.id}` ? 'Updating...' : topic.isActive ? "Deactivate" : "Activate"}
                     </button>
                     <button
                       onClick={() => deleteTopic(topic.id)}
-                      className="text-red-600 hover:text-red-900 ml-2 cursor-pointer"
+                      disabled={operationInProgress === `deleting-${topic.id}`}
+                      className={`text-red-600 hover:text-red-900 ml-2 cursor-pointer ${
+                        operationInProgress === `deleting-${topic.id}` ? 'opacity-50 cursor-not-allowed' : ''
+                      }`}
                     >
-                      Delete
+                      {operationInProgress === `deleting-${topic.id}` ? 'Deleting...' : 'Delete'}
                     </button>
                     <a
                       href={`/admin/entries/${topic.id}`}
@@ -324,16 +359,15 @@ function TopicsList({
   );
 }
 
-function AddTopicForm({ onTopicAdded }: { onTopicAdded: () => void }) {
+function AddTopicForm({ onTopicAdded, isSubmitting, setOperationInProgress }: { onTopicAdded: () => void, isSubmitting: boolean, setOperationInProgress: (operation: string | null) => void }) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [error, setError] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
   const [success, setSuccess] = useState(false);
 
   const handleAddTopic = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
+    setOperationInProgress('creating');
     setError("");
     setSuccess(false);
 
@@ -358,7 +392,7 @@ function AddTopicForm({ onTopicAdded }: { onTopicAdded: () => void }) {
     } catch (err) {
       setError("An unexpected error occurred");
     } finally {
-      setIsLoading(false);
+      setOperationInProgress(null);
     }
   };
 
@@ -393,7 +427,7 @@ function AddTopicForm({ onTopicAdded }: { onTopicAdded: () => void }) {
               className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
               placeholder="Enter topic name"
               required
-              disabled={isLoading}
+              disabled={isSubmitting}
             />
           </div>
 
@@ -408,7 +442,7 @@ function AddTopicForm({ onTopicAdded }: { onTopicAdded: () => void }) {
               className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
               placeholder="Enter topic description"
               required
-              disabled={isLoading}
+              disabled={isSubmitting}
             />
           </div>
         </div>
@@ -416,15 +450,15 @@ function AddTopicForm({ onTopicAdded }: { onTopicAdded: () => void }) {
         <div className="flex justify-end">
           <button
             type="submit"
-            disabled={isLoading}
+            disabled={isSubmitting}
             className={`px-6 py-2 rounded-md text-white font-medium transition-all
               ${
-                isLoading
+                isSubmitting
                   ? "bg-gray-400 cursor-not-allowed"
                   : "bg-blue-600 hover:bg-blue-700 active:transform active:scale-95"
               }`}
           >
-            {isLoading ? (
+            {isSubmitting ? (
               <span className="flex items-center">
                 <svg
                   className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
