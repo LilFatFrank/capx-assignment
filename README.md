@@ -13,6 +13,7 @@ This project is a Next.js application that provides an Admin Portal for managing
 - **Zod**: For schema validation on both client and server
 - **Viem**: For Ethereum wallet address validation
 - **JWT**: For authentication
+- **PBKDF2**: For secure password hashing
 
 ## Development Environment Setup
 
@@ -49,13 +50,19 @@ FIREBASE_PRIVATE_KEY=your-firebase-private-key
 
 # Admin Credentials
 ADMIN_USERNAME=your-admin-username
-ADMIN_PASSWORD=your-admin-password
+ADMIN_PASSWORD_HASH=your-hashed-password
 
 # JWT Secret
 JWT_SECRET=your-jwt-secret-key
 ```
 
-**Note**: The Firebase private key should be the entire key including the `-----BEGIN PRIVATE KEY-----` and `-----END PRIVATE KEY-----` parts. If you're having issues with the private key, you may need to replace newlines with `\n` characters.
+**Note**:
+
+- The Firebase private key should be the entire key including the `-----BEGIN PRIVATE KEY-----` and `-----END PRIVATE KEY-----` parts. If you're having issues with the private key, you may need to replace newlines with `\n` characters.
+- The `ADMIN_PASSWORD_HASH` should be generated using the password hashing utility. You can generate a hash by running:
+  ```bash
+  node -e "const crypto = require('crypto'); const salt = crypto.randomBytes(16).toString('hex'); const hash = crypto.pbkdf2Sync('your-password', salt, 1000, 64, 'sha512').toString('hex'); console.log(`${salt}:${hash}`);"
+  ```
 
 ## Running the Application
 
@@ -81,25 +88,30 @@ yarn start
 
 ## Admin Portal Access
 
-The Admin Portal is accessible at `/admin` after logging in.
+The Admin Portal is accessible at `/admin` after logging in with the following credentials:
+
+```bash
+username: admin
+password: password
+```
 
 ## Features
 
 - **Topic Management**: Create, update, and delete topics
 - **Entry Management**: View and delete entries submitted by users
-- **Authentication**: Secure admin access with JWT-based authentication
+- **Authentication**: Secure admin access with JWT-based authentication and password hashing
 - **Form Validation**: Comprehensive validation for all form inputs
 - **Error Handling**: Graceful error handling with user-friendly messages
 
 ## Assumptions and Simplifications
 
-- **Authentication**: Using a simple username/password authentication system for the admin portal
+- **Authentication**: Using a secure username/password authentication system with password hashing for the admin portal
 - **Database**: Using Firebase Firestore for data storage
 - **Indexing**: We've created indexes on `topicId` and `topicName` fields in the entries collection in firebase console for better query performance
 - **Validation**: Using Zod for schema validation on both client and server
 - **UI**: Using Tailwind CSS for styling without additional UI libraries
 - **Platform Username Validation**: Simulated external API validation for platform usernames
-- **Session Management**: Using JWT tokens stored in cookies for session management
+- **Session Management**: Using JWT tokens stored in HttpOnly cookies for secure session management
 
 ## API Endpoints
 

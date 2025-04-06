@@ -1,7 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { firestoreDB } from "@/utils/firebaseAdmin";
 import { verifyToken } from "@/utils/auth";
-import cookie from "cookie";
 import { z } from "zod";
 
 // Types
@@ -162,7 +161,13 @@ export default async function handler(
 ) {
   // Only verify token for admin operations
   if (req.method !== "GET") {
-    const { token } = cookie.parse(req.headers.cookie || "");
+    const cookies = req.headers.cookie?.split(';').reduce((acc, cookie) => {
+      const [key, value] = cookie.trim().split('=');
+      acc[key] = value;
+      return acc;
+    }, {} as Record<string, string>);
+    
+    const token = cookies?.token;
     const admin = verifyToken(token || "");
 
     if (!admin) {

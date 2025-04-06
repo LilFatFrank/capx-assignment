@@ -1,6 +1,5 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { verifyToken } from "@/utils/auth";
-import cookie from "cookie";
 import jwt from "jsonwebtoken";
 
 interface AuthStatusResponse {
@@ -18,7 +17,13 @@ export default function handler(
   }
 
   try {
-    const { token } = cookie.parse(req.headers.cookie || "");
+    const cookies = req.headers.cookie?.split(';').reduce((acc, cookie) => {
+      const [key, value] = cookie.trim().split('=');
+      acc[key] = value;
+      return acc;
+    }, {} as Record<string, string>);
+    
+    const token = cookies?.token;
     
     if (!token) {
       return res.status(200).json({ isAuthenticated: false });

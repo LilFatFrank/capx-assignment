@@ -1,5 +1,4 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import cookie from 'cookie';
 
 interface LogoutResponse {
   message: string;
@@ -12,12 +11,18 @@ export default function handler(
 ) {
   try {
     // Clear the token cookie
-    res.setHeader('Set-Cookie', cookie.serialize('token', '', {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      expires: new Date(0),
-      path: '/',
-    }));
+    const cookieOptions = [
+      'token=',
+      'Path=/',
+      'Expires=Thu, 01 Jan 1970 00:00:00 GMT',
+      'HttpOnly',
+    ];
+    
+    if (process.env.NODE_ENV === 'production') {
+      cookieOptions.push('Secure');
+    }
+    
+    res.setHeader('Set-Cookie', cookieOptions.join('; '));
     
     res.status(200).json({ message: 'Logged out successfully' });
   } catch (error) {

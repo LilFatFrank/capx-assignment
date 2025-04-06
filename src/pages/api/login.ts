@@ -1,6 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { signToken } from '@/utils/auth';
-import cookie from 'cookie';
+import { signToken, verifyPassword } from '@/utils/auth';
 import { z } from 'zod';
 
 // Types
@@ -26,22 +25,33 @@ const LoginSchema = z.object({
 
 // Helper Functions
 const validateCredentials = (credentials: LoginCredentials): boolean => {
+  // Get the stored password hash from environment variable
+  const storedPasswordHash = process.env.ADMIN_PASSWORD_HASH;
+  if (!storedPasswordHash) {
+    console.error('ADMIN_PASSWORD_HASH environment variable is not set');
+    return false;
+  }
+
+  // Verify the password against the stored hash
   return (
     credentials.username === process.env.ADMIN_USERNAME &&
-    credentials.password === process.env.ADMIN_PASSWORD
+    verifyPassword(credentials.password, storedPasswordHash)
   );
 };
 
 const setAuthCookie = (res: NextApiResponse, token: string): void => {
-  res.setHeader(
-    'Set-Cookie',
-    cookie.serialize('token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      maxAge: COOKIE_MAX_AGE,
-      path: COOKIE_PATH,
-    })
-  );
+  const cookieOptions = [
+    `token=${token}`,
+    `Path=${COOKIE_PATH}`,
+    `Max-Age=${COOKIE_MAX_AGE}`,
+    'HttpOnly',
+  ];
+  
+  if (process.env.NODE_ENV === 'production') {
+    cookieOptions.push('Secure');
+  }
+  
+  res.setHeader('Set-Cookie', cookieOptions.join('; '));
 };
 
 // Main Handler

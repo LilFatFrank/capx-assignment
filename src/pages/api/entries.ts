@@ -3,7 +3,6 @@ import { firestoreDB } from "@/utils/firebaseAdmin";
 import { z } from "zod";
 import { isAddress } from "viem";
 import { verifyToken } from "@/utils/auth";
-import cookie from "cookie";
 import { Query, DocumentData } from "firebase-admin/firestore";
 
 // Constants
@@ -94,16 +93,6 @@ const getPaginationParams = (query: NextApiRequest['query']): PaginationParams =
   const limit = Math.min(MAX_PAGE_SIZE, Math.max(1, parseInt(query.limit as string) || DEFAULT_PAGE_SIZE));
   const offset = (page - 1) * limit;
   return { page, limit, offset };
-};
-
-const handleAuthError = (error: Error, res: NextApiResponse) => {
-  if (error.message.includes("expired")) {
-    return res.status(401).json({ error: "Token has expired", code: "TOKEN_EXPIRED" });
-  }
-  if (error.message.includes("Invalid token")) {
-    return res.status(401).json({ error: "Invalid token", code: "INVALID_TOKEN" });
-  }
-  return res.status(500).json({ error: "Authentication error" });
 };
 
 // Route Handlers
@@ -256,25 +245,14 @@ const handleDeleteEntry = async (
   res: NextApiResponse
 ): Promise<void> => {
   try {
-
     const { id } = req.body;
     if (!id) {
       return res.status(400).json({ error: "Entry ID is required" });
     }
-
-    const entryRef = firestoreDB.collection("entries").doc(id);
-    const entry = await entryRef.get();
-
-    if (!entry.exists) {
-      return res.status(404).json({ error: "Entry not found" });
-    }
-
-    await entryRef.delete();
+    await firestoreDB.collection("entries").doc(id).delete();
     res.status(200).json({ message: "Entry deleted successfully" });
   } catch (error) {
-    if (error instanceof Error) {
-      return handleAuthError(error, res);
-    }
+    console.error("Error deleting entry:", error);
     res.status(500).json({ error: "Failed to delete entry" });
   }
 };
@@ -284,9 +262,15 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ): Promise<void> {
-  // Only verify token for admin operations (GET and DELETE)
-  if (req.method !== "POST") {
-    const { token } = cookie.parse(req.headers.cookie || "");
+  // Only verify token for admin operations
+  if (req.method !== "GET" && req.method !== "POST") {
+    const cookies = req.headers.cookie?.split(';').reduce((acc, cookie) => {
+      const [key, value] = cookie.trim().split('=');
+      acc[key] = value;
+      return acc;
+    }, {} as Record<string, string>);
+    
+    const token = cookies?.token;
     const admin = verifyToken(token || "");
 
     if (!admin) {
