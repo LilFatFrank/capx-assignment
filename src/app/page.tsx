@@ -11,10 +11,12 @@ interface Topic {
 
 export default function LandingPage() {
   const [topics, setTopics] = useState<Topic[]>([]);
+  const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
   async function fetchTopics() {
     try {
+      setLoading(true);
       const res = await fetch("/api/topics");
       const data = await res.json();
       if (res.ok && !data.error) {
@@ -25,12 +27,22 @@ export default function LandingPage() {
     } catch (err) {
       console.log("Fetch topics error", err);
       setError("Failed to fetch topics");
+    } finally {
+      setLoading(false);
     }
   }
 
   useEffect(() => {
     fetchTopics();
   }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
 
   if (error) {
     return (
