@@ -1,4 +1,3 @@
-// /utils/auth.ts
 import jwt from 'jsonwebtoken';
 
 const JWT_SECRET = process.env.JWT_SECRET!;
@@ -8,7 +7,6 @@ export interface AdminPayload {
 }
 
 export function signToken(payload: AdminPayload): string {
-  // You can adjust token expiry as needed
   return jwt.sign(payload, JWT_SECRET, { expiresIn: '1h' });
 }
 

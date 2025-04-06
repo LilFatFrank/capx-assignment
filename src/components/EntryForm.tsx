@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { isAddress } from 'viem';
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { isAddress } from "viem";
 
 interface EntryFormProps {
   topicId: string;
@@ -24,11 +24,11 @@ interface ValidationErrors {
 export default function EntryForm({ topicId, topicName }: EntryFormProps) {
   const router = useRouter();
   const [formData, setFormData] = useState<FormData>({
-    telegramUsername: '',
-    platformUsername: '',
-    walletAddress: '',
-    discordUsername: '',
-    email: '',
+    telegramUsername: "",
+    platformUsername: "",
+    walletAddress: "",
+    discordUsername: "",
+    email: "",
   });
   const [errors, setErrors] = useState<ValidationErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -40,43 +40,45 @@ export default function EntryForm({ topicId, topicName }: EntryFormProps) {
 
     // Telegram username validation
     if (!formData.telegramUsername) {
-      newErrors.telegramUsername = 'Telegram username is required';
+      newErrors.telegramUsername = "Telegram username is required";
     } else if (!/^[a-zA-Z0-9_]+$/.test(formData.telegramUsername)) {
-      newErrors.telegramUsername = 'Telegram username can only contain letters, numbers, and underscores';
+      newErrors.telegramUsername =
+        "Telegram username can only contain letters, numbers, and underscores";
     } else if (formData.telegramUsername.length > 32) {
-      newErrors.telegramUsername = 'Telegram username is too long';
+      newErrors.telegramUsername = "Telegram username is too long";
     }
 
     // Platform username validation
     if (!formData.platformUsername) {
-      newErrors.platformUsername = 'Platform username is required';
+      newErrors.platformUsername = "Platform username is required";
     } else if (formData.platformUsername.length > 50) {
-      newErrors.platformUsername = 'Platform username is too long';
+      newErrors.platformUsername = "Platform username is too long";
     }
 
     // Wallet address validation
     if (!formData.walletAddress) {
-      newErrors.walletAddress = 'Wallet address is required';
+      newErrors.walletAddress = "Wallet address is required";
     } else if (!isAddress(formData.walletAddress)) {
-      newErrors.walletAddress = 'Invalid Ethereum wallet address';
+      newErrors.walletAddress = "Invalid Ethereum wallet address";
     }
 
     // Discord username validation (optional)
     if (formData.discordUsername) {
       if (!/^[a-zA-Z0-9_]+$/.test(formData.discordUsername)) {
-        newErrors.discordUsername = 'Discord username can only contain letters, numbers, and underscores';
+        newErrors.discordUsername =
+          "Discord username can only contain letters, numbers, and underscores";
       } else if (formData.discordUsername.length > 32) {
-        newErrors.discordUsername = 'Discord username is too long';
+        newErrors.discordUsername = "Discord username is too long";
       }
     }
 
     // Email validation
     if (!formData.email) {
-      newErrors.email = 'Email is required';
+      newErrors.email = "Email is required";
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = 'Invalid email address';
+      newErrors.email = "Invalid email address";
     } else if (formData.email.length > 254) {
-      newErrors.email = 'Email address is too long';
+      newErrors.email = "Email address is too long";
     }
 
     setErrors(newErrors);
@@ -94,34 +96,36 @@ export default function EntryForm({ topicId, topicName }: EntryFormProps) {
     setIsSubmitting(true);
 
     try {
-      const response = await fetch('/api/entries', {
-        method: 'POST',
+      const response = await fetch("/api/entries", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           ...formData,
           topicId,
+          topicName
         }),
       });
 
       const data = await response.json();
 
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to submit entry');
+      if (!response.ok || data.error) {
+        setSubmitError("Failed to submit entry");
+        return;
       }
 
       setIsSuccess(true);
       // Reset form after successful submission
       setFormData({
-        telegramUsername: '',
-        platformUsername: '',
-        walletAddress: '',
-        discordUsername: '',
-        email: '',
+        telegramUsername: "",
+        platformUsername: "",
+        walletAddress: "",
+        discordUsername: "",
+        email: "",
       });
     } catch (error) {
-      setSubmitError(error instanceof Error ? error.message : 'An unexpected error occurred');
+      setSubmitError("An unexpected error occurred");
     } finally {
       setIsSubmitting(false);
     }
@@ -129,20 +133,24 @@ export default function EntryForm({ topicId, topicName }: EntryFormProps) {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
     // Clear error when user starts typing
     if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: '' }));
+      setErrors((prev) => ({ ...prev, [name]: "" }));
     }
   };
 
   if (isSuccess) {
     return (
       <div className="bg-green-50 border border-green-200 rounded p-4 mb-4">
-        <h2 className="text-green-800 font-semibold">Entry Submitted Successfully!</h2>
-        <p className="text-green-700">Thank you for your submission for {topicName}.</p>
+        <h2 className="text-green-800 font-semibold">
+          Entry Submitted Successfully!
+        </h2>
+        <p className="text-green-700">
+          Thank you for your submission for {topicName}.
+        </p>
         <button
-          onClick={() => router.push('/')}
+          onClick={() => router.push("/")}
           className="mt-4 text-green-600 hover:text-green-800 underline"
         >
           Return to Topics
@@ -169,9 +177,10 @@ export default function EntryForm({ topicId, topicName }: EntryFormProps) {
           value={formData.telegramUsername}
           onChange={handleChange}
           className={`w-full p-2 border rounded ${
-            errors.telegramUsername ? 'border-red-500' : 'border-gray-300'
+            errors.telegramUsername ? "border-red-500" : "border-gray-300"
           }`}
-          placeholder="@username"
+          placeholder="lilfatfrank"
+          autoComplete="off"
         />
         {errors.telegramUsername && (
           <p className="mt-1 text-sm text-red-600">{errors.telegramUsername}</p>
@@ -188,8 +197,10 @@ export default function EntryForm({ topicId, topicName }: EntryFormProps) {
           value={formData.platformUsername}
           onChange={handleChange}
           className={`w-full p-2 border rounded ${
-            errors.platformUsername ? 'border-red-500' : 'border-gray-300'
+            errors.platformUsername ? "border-red-500" : "border-gray-300"
           }`}
+          placeholder="lilfatfrank"
+          autoComplete="off"
         />
         {errors.platformUsername && (
           <p className="mt-1 text-sm text-red-600">{errors.platformUsername}</p>
@@ -206,9 +217,10 @@ export default function EntryForm({ topicId, topicName }: EntryFormProps) {
           value={formData.walletAddress}
           onChange={handleChange}
           className={`w-full p-2 border rounded ${
-            errors.walletAddress ? 'border-red-500' : 'border-gray-300'
+            errors.walletAddress ? "border-red-500" : "border-gray-300"
           }`}
-          placeholder="0x..."
+          placeholder="0x1234...1234"
+          autoComplete="off"
         />
         {errors.walletAddress && (
           <p className="mt-1 text-sm text-red-600">{errors.walletAddress}</p>
@@ -225,8 +237,10 @@ export default function EntryForm({ topicId, topicName }: EntryFormProps) {
           value={formData.discordUsername}
           onChange={handleChange}
           className={`w-full p-2 border rounded ${
-            errors.discordUsername ? 'border-red-500' : 'border-gray-300'
+            errors.discordUsername ? "border-red-500" : "border-gray-300"
           }`}
+          placeholder="lilfatfrank"
+          autoComplete="off"
         />
         {errors.discordUsername && (
           <p className="mt-1 text-sm text-red-600">{errors.discordUsername}</p>
@@ -243,8 +257,10 @@ export default function EntryForm({ topicId, topicName }: EntryFormProps) {
           value={formData.email}
           onChange={handleChange}
           className={`w-full p-2 border rounded ${
-            errors.email ? 'border-red-500' : 'border-gray-300'
+            errors.email ? "border-red-500" : "border-gray-300"
           }`}
+          placeholder="lilfatfrank@gmail.com"
+          autoComplete="off"
         />
         {errors.email && (
           <p className="mt-1 text-sm text-red-600">{errors.email}</p>
@@ -255,11 +271,11 @@ export default function EntryForm({ topicId, topicName }: EntryFormProps) {
         type="submit"
         disabled={isSubmitting}
         className={`w-full bg-blue-500 text-white py-2 px-4 rounded ${
-          isSubmitting ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-600'
+          isSubmitting ? "opacity-50 cursor-not-allowed" : "hover:bg-blue-600"
         }`}
       >
-        {isSubmitting ? 'Submitting...' : 'Submit Entry'}
+        {isSubmitting ? "Submitting..." : "Submit Entry"}
       </button>
     </form>
   );
-} 
+}

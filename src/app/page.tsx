@@ -1,6 +1,6 @@
 "use client";
-import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import Link from "next/link";
+import { useEffect, useState } from "react";
 
 interface Topic {
   id: string;
@@ -13,21 +13,22 @@ export default function LandingPage() {
   const [topics, setTopics] = useState<Topic[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function fetchTopics() {
-      try {
-        const res = await fetch('/api/topics');
-        const data = await res.json();
-        if (res.ok) {
-          // Filter active topics on the client side
-          setTopics(data.topics.filter((topic: Topic) => topic.isActive));
-        } else {
-          setError('Failed to fetch topics');
-        }
-      } catch (err) {
-        setError('Failed to fetch topics');
+  async function fetchTopics() {
+    try {
+      const res = await fetch("/api/topics");
+      const data = await res.json();
+      if (res.ok && !data.error) {
+        setTopics(data.topics.filter((topic: Topic) => topic.isActive));
+      } else {
+        setError("Failed to fetch topics");
       }
+    } catch (err) {
+      console.log("Fetch topics error", err);
+      setError("Failed to fetch topics");
     }
+  }
+
+  useEffect(() => {
     fetchTopics();
   }, []);
 
@@ -41,24 +42,51 @@ export default function LandingPage() {
 
   return (
     <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">Active Topics</h1>
+      <h1 className="text-2xl font-bold mb-6">Active Topics</h1>
       {topics.length === 0 ? (
-        <p>No active topics available.</p>
+        <p className="text-gray-500">No active topics available.</p>
       ) : (
-        <ul>
-          {topics.map(topic => (
-            <li key={topic.id} className="mb-4 p-4 border rounded">
-              <h2 className="text-xl font-semibold">{topic.name}</h2>
-              <p className="mt-2">{topic.description}</p>
-              <Link 
-                href={`/submit/${topic.id}`}
-                className="mt-4 inline-block text-blue-500 hover:text-blue-700 underline"
-              >
-                Submit Entry for {topic.name}
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <div className="overflow-x-auto">
+          <table className="min-w-full bg-white border border-gray-200 rounded-lg">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Topic
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Description
+                </th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Action
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {topics.map((topic) => (
+                <tr key={topic.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm font-medium text-gray-900">
+                      {topic.name}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="text-sm text-gray-500">
+                      {topic.description}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right">
+                    <Link
+                      href={`/submit/${topic.id}`}
+                      className="text-sm text-blue-600 hover:text-blue-900"
+                    >
+                      Submit Entry
+                    </Link>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );
