@@ -186,37 +186,42 @@ const handlePostEntry = async (
   try {
     const data = EntrySchema.parse(req.body);
 
-    // Check for any duplicates in the same topic
+    // Check for duplicates in the same topic
     const duplicatesQuery = await firestoreDB.collection("entries")
       .where("topicId", "==", data.topicId)
       .get();
 
     const duplicates = duplicatesQuery.docs;
     
-    // Check for duplicates in the same topic
+    // Check for duplicate wallet address
     const duplicateWallet = duplicates.some(doc => doc.data().walletAddress === data.walletAddress);
-    const duplicateEmail = duplicates.some(doc => doc.data().email === data.email);
-    const duplicateUser = duplicates.some(
-      doc => 
-        doc.data().telegramUsername === data.telegramUsername && 
-        doc.data().platformUsername === data.platformUsername
-    );
-
     if (duplicateWallet) {
       return res.status(400).json({
-        error: "This wallet address has already been used for this topic",
+        error: "This wallet address has already been submitted for this topic",
       });
     }
 
+    // Check for duplicate email
+    const duplicateEmail = duplicates.some(doc => doc.data().email === data.email);
     if (duplicateEmail) {
       return res.status(400).json({
-        error: "This email address has already been used for this topic",
+        error: "This email address has already been submitted for this topic",
       });
     }
 
-    if (duplicateUser) {
+    // Check for duplicate telegram username
+    const duplicateTelegram = duplicates.some(doc => doc.data().telegramUsername === data.telegramUsername);
+    if (duplicateTelegram) {
       return res.status(400).json({
-        error: "You have already submitted an entry for this topic",
+        error: "This Telegram username has already been submitted for this topic",
+      });
+    }
+
+    // Check for duplicate platform username
+    const duplicatePlatform = duplicates.some(doc => doc.data().platformUsername === data.platformUsername);
+    if (duplicatePlatform) {
+      return res.status(400).json({
+        error: "This platform username has already been submitted for this topic",
       });
     }
 
