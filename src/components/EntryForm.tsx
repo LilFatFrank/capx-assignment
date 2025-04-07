@@ -107,6 +107,7 @@ export default function EntryForm({ topicId, topicName }: EntryFormProps) {
         headers: {
           "Content-Type": "application/json",
         },
+        credentials: "include",
         body: JSON.stringify({ username: formData.platformUsername }),
       });
 
@@ -125,6 +126,7 @@ export default function EntryForm({ topicId, topicName }: EntryFormProps) {
         headers: {
           "Content-Type": "application/json",
         },
+        credentials: "include",
         body: JSON.stringify({
           ...formData,
           topicId,

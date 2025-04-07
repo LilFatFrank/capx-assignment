@@ -27,7 +27,9 @@ export default function AdminDashboard() {
     // Fetch initial topics
     const fetchTopics = async () => {
       try {
-        const response = await fetch("/api/topics");
+        const response = await fetch("/api/topics", {
+          credentials: "include",
+        });
         if (response.ok) {
           const data = await response.json();
           setInitialTopics(data.topics);

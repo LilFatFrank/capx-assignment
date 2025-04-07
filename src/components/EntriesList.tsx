@@ -72,7 +72,9 @@ export default function EntriesList({ topicId, topicName }: EntriesListProps) {
         queryParams.append("topicName", debouncedTopicName);
       }
 
-      const response = await fetch(`/api/entries?${queryParams}`);
+      const response = await fetch(`/api/entries?${queryParams}`, {
+        credentials: "include"
+      });
       if (!response.ok) {
         throw new Error("Failed to fetch entries");
       }

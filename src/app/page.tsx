@@ -17,10 +17,12 @@ export default function LandingPage() {
   async function fetchTopics() {
     try {
       setLoading(true);
-      const res = await fetch("/api/topics");
+      const res = await fetch(`/api/topics?type=active`, {
+        credentials: "include"
+      });
       const data = await res.json();
       if (res.ok && !data.error) {
-        setTopics(data.topics.filter((topic: Topic) => topic.isActive));
+        setTopics(data.topics);
       } else {
         setError("Failed to fetch topics");
       }

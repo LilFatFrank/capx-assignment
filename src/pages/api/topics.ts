@@ -2,6 +2,11 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { firestoreDB } from "@/utils/firebaseAdmin";
 import { verifyToken } from "@/utils/auth";
 import { z } from "zod";
+import {
+  CollectionReference,
+  DocumentData,
+  Query,
+} from "firebase-admin/firestore";
 
 // Types
 interface Topic {
@@ -33,8 +38,14 @@ const MAX_PAGE_SIZE = 100;
 
 // Validation Schemas
 const CreateTopicSchema = z.object({
-  name: z.string().min(1, "Topic name is required").max(100, "Topic name is too long"),
-  description: z.string().min(1, "Description is required").max(500, "Description is too long"),
+  name: z
+    .string()
+    .min(1, "Topic name is required")
+    .max(100, "Topic name is too long"),
+  description: z
+    .string()
+    .min(1, "Description is required")
+    .max(500, "Description is too long"),
 });
 
 const UpdateTopicSchema = z.object({
@@ -43,9 +54,12 @@ const UpdateTopicSchema = z.object({
 });
 
 // Helper Functions
-const getPaginationParams = (query: NextApiRequest['query']) => {
+const getPaginationParams = (query: NextApiRequest["query"]) => {
   const page = Math.max(1, parseInt(query.page as string) || 1);
-  const limit = Math.min(MAX_PAGE_SIZE, Math.max(1, parseInt(query.limit as string) || DEFAULT_PAGE_SIZE));
+  const limit = Math.min(
+    MAX_PAGE_SIZE,
+    Math.max(1, parseInt(query.limit as string) || DEFAULT_PAGE_SIZE)
+  );
   const offset = (page - 1) * limit;
   return { page, limit, offset };
 };
@@ -57,29 +71,45 @@ const handleGetTopics = async (
 ) => {
   try {
     const { page, limit, offset } = getPaginationParams(req.query);
+    const { type } = req.query;
 
-    const totalSnapshot = await firestoreDB.collection("topics").count().get();
+    // Build base query
+    let baseQuery: CollectionReference<DocumentData> | Query<DocumentData> =
+      firestoreDB.collection("topics");
+
+    // Conditionally filter by 'isActive'
+    if (type === "active") {
+      baseQuery = baseQuery.where("isActive", "==", true);
+    }
+
+    // Get total count *after* applying filter
+    const totalSnapshot = await baseQuery.count().get();
     const total = totalSnapshot.data().count;
 
-    const snapshot = await firestoreDB.collection("topics")
-      .orderBy('createdAt', 'desc')
+    // Add sort and pagination
+    let paginatedQuery = baseQuery
+      .orderBy("createdAt", "desc")
       .limit(limit)
-      .offset(offset)
-      .get();
+      .offset(offset);
 
-    const topics = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    } as Topic));
+    const snapshot = await paginatedQuery.get();
 
-    res.status(200).json({ 
+    const topics = snapshot.docs.map(
+      (doc) =>
+        ({
+          id: doc.id,
+          ...doc.data(),
+        } as Topic)
+    );
+
+    res.status(200).json({
       topics,
       pagination: {
         total,
         page,
         limit,
-        totalPages: Math.ceil(total / limit)
-      }
+        totalPages: Math.ceil(total / limit),
+      },
     });
   } catch (error) {
     console.error("Error fetching topics:", error);
@@ -87,13 +117,10 @@ const handleGetTopics = async (
   }
 };
 
-const handleCreateTopic = async (
-  req: NextApiRequest,
-  res: NextApiResponse
-) => {
+const handleCreateTopic = async (req: NextApiRequest, res: NextApiResponse) => {
   try {
     const validatedData = CreateTopicSchema.parse(req.body);
-    
+
     const newTopic = {
       ...validatedData,
       isActive: true,
@@ -104,9 +131,9 @@ const handleCreateTopic = async (
     res.status(201).json({ id: docRef.id, ...newTopic });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ 
-        error: "Validation failed", 
-        details: error.errors 
+      return res.status(400).json({
+        error: "Validation failed",
+        details: error.errors,
       });
     }
     console.error("Error creating topic:", error);
@@ -114,22 +141,19 @@ const handleCreateTopic = async (
   }
 };
 
-const handleUpdateTopic = async (
-  req: NextApiRequest,
-  res: NextApiResponse
-) => {
+const handleUpdateTopic = async (req: NextApiRequest, res: NextApiResponse) => {
   try {
     const validatedData = UpdateTopicSchema.parse(req.body);
-    
-    await firestoreDB.collection("topics").doc(validatedData.id).update({ 
-      isActive: validatedData.isActive 
+
+    await firestoreDB.collection("topics").doc(validatedData.id).update({
+      isActive: validatedData.isActive,
     });
     res.status(200).json({ message: "Topic status updated" });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ 
-        error: "Validation failed", 
-        details: error.errors 
+      return res.status(400).json({
+        error: "Validation failed",
+        details: error.errors,
       });
     }
     console.error("Error updating topic:", error);
@@ -137,10 +161,7 @@ const handleUpdateTopic = async (
   }
 };
 
-const handleDeleteTopic = async (
-  req: NextApiRequest,
-  res: NextApiResponse
-) => {
+const handleDeleteTopic = async (req: NextApiRequest, res: NextApiResponse) => {
   try {
     const { id } = req.body;
     if (!id) {
@@ -161,12 +182,12 @@ export default async function handler(
 ) {
   // Only verify token for admin operations
   if (req.method !== "GET") {
-    const cookies = req.headers.cookie?.split(';').reduce((acc, cookie) => {
-      const [key, value] = cookie.trim().split('=');
+    const cookies = req.headers.cookie?.split(";").reduce((acc, cookie) => {
+      const [key, value] = cookie.trim().split("=");
       acc[key] = value;
       return acc;
     }, {} as Record<string, string>);
-    
+
     const token = cookies?.token;
     const admin = verifyToken(token || "");
 

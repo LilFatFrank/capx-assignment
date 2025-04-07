@@ -263,7 +263,7 @@ export default async function handler(
   res: NextApiResponse
 ): Promise<void> {
   // Only verify token for admin operations
-  if (req.method !== "GET" && req.method !== "POST") {
+  if (req.method !== "POST") {
     const cookies = req.headers.cookie?.split(';').reduce((acc, cookie) => {
       const [key, value] = cookie.trim().split('=');
       acc[key] = value;

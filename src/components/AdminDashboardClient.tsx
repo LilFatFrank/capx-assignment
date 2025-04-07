@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react"
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import Link from "next/link";
-import { ErrorBoundary } from './ErrorBoundary';
+import { ErrorBoundary } from "./ErrorBoundary";
 
 interface Topic {
   id: string;
@@ -29,12 +29,16 @@ export default function AdminDashboardClient({
 }: AdminDashboardClientProps) {
   const [topics, setTopics] = useState<Topic[]>(initialTopics);
   const [isLoading, setIsLoading] = useState(false);
-  const [operationInProgress, setOperationInProgress] = useState<string | null>(null);
+  const [operationInProgress, setOperationInProgress] = useState<string | null>(
+    null
+  );
 
   const refreshTopics = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch("/api/topics");
+      const res = await fetch("/api/topics", {
+        credentials: "include",
+      });
       const data = await res.json();
       if (res.ok && !data.error) {
         setTopics(data.topics);
@@ -51,20 +55,20 @@ export default function AdminDashboardClient({
     <ErrorBoundary>
       <div className="space-y-6">
         <h1 className="text-2xl font-bold mb-4">Admin Dashboard</h1>
-        <AddTopicForm 
-          onTopicAdded={refreshTopics} 
-          isSubmitting={operationInProgress === 'creating'}
+        <AddTopicForm
+          onTopicAdded={refreshTopics}
+          isSubmitting={operationInProgress === "creating"}
           setOperationInProgress={setOperationInProgress}
         />
-        <TopicsList 
-          topics={topics} 
+        <TopicsList
+          topics={topics}
           setTopics={setTopics}
           isLoading={isLoading}
           operationInProgress={operationInProgress}
           setOperationInProgress={setOperationInProgress}
         />
         <div className="mb-4">
-          <Link 
+          <Link
             href="/admin/entries"
             className="text-blue-500 hover:text-blue-700 inline-flex items-center"
           >
@@ -104,7 +108,10 @@ function TopicsList({
   const fetchTopics = async () => {
     try {
       const response = await fetch(
-        `/api/topics?page=${pagination.page}&limit=${pagination.limit}`
+        `/api/topics?page=${pagination.page}&limit=${pagination.limit}`,
+        {
+          credentials: "include",
+        }
       );
       const data = await response.json();
       if (!response.ok || data.error) {
@@ -128,6 +135,7 @@ function TopicsList({
       const res = await fetch("/api/topics", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ id, isActive: !currentStatus }),
       });
       const data = await res.json();
@@ -137,7 +145,9 @@ function TopicsList({
             topic.id === id ? { ...topic, isActive: !currentStatus } : topic
           )
         );
-        toast.success(`Topic ${!currentStatus ? 'activated' : 'deactivated'} successfully`);
+        toast.success(
+          `Topic ${!currentStatus ? "activated" : "deactivated"} successfully`
+        );
       }
     } catch (e) {
       toast.error("Error updating topic status! Something went wrong.");
@@ -157,6 +167,7 @@ function TopicsList({
       const res = await fetch("/api/topics", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ id }),
       });
       const data = await res.json();
@@ -235,19 +246,29 @@ function TopicsList({
                       onClick={() => toggleStatus(topic.id, topic.isActive)}
                       disabled={operationInProgress === `toggling-${topic.id}`}
                       className={`text-blue-600 hover:text-blue-900 cursor-pointer ${
-                        operationInProgress === `toggling-${topic.id}` ? 'opacity-50 cursor-not-allowed' : ''
+                        operationInProgress === `toggling-${topic.id}`
+                          ? "opacity-50 cursor-not-allowed"
+                          : ""
                       }`}
                     >
-                      {operationInProgress === `toggling-${topic.id}` ? 'Updating...' : topic.isActive ? "Deactivate" : "Activate"}
+                      {operationInProgress === `toggling-${topic.id}`
+                        ? "Updating..."
+                        : topic.isActive
+                        ? "Deactivate"
+                        : "Activate"}
                     </button>
                     <button
                       onClick={() => deleteTopic(topic.id)}
                       disabled={operationInProgress === `deleting-${topic.id}`}
                       className={`text-red-600 hover:text-red-900 ml-2 cursor-pointer ${
-                        operationInProgress === `deleting-${topic.id}` ? 'opacity-50 cursor-not-allowed' : ''
+                        operationInProgress === `deleting-${topic.id}`
+                          ? "opacity-50 cursor-not-allowed"
+                          : ""
                       }`}
                     >
-                      {operationInProgress === `deleting-${topic.id}` ? 'Deleting...' : 'Delete'}
+                      {operationInProgress === `deleting-${topic.id}`
+                        ? "Deleting..."
+                        : "Delete"}
                     </button>
                     <a
                       href={`/admin/entries/${topic.id}`}
@@ -359,7 +380,15 @@ function TopicsList({
   );
 }
 
-function AddTopicForm({ onTopicAdded, isSubmitting, setOperationInProgress }: { onTopicAdded: () => void, isSubmitting: boolean, setOperationInProgress: (operation: string | null) => void }) {
+function AddTopicForm({
+  onTopicAdded,
+  isSubmitting,
+  setOperationInProgress,
+}: {
+  onTopicAdded: () => void;
+  isSubmitting: boolean;
+  setOperationInProgress: (operation: string | null) => void;
+}) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [error, setError] = useState("");
@@ -367,7 +396,7 @@ function AddTopicForm({ onTopicAdded, isSubmitting, setOperationInProgress }: { 
 
   const handleAddTopic = async (e: React.FormEvent) => {
     e.preventDefault();
-    setOperationInProgress('creating');
+    setOperationInProgress("creating");
     setError("");
     setSuccess(false);
 
@@ -375,6 +404,7 @@ function AddTopicForm({ onTopicAdded, isSubmitting, setOperationInProgress }: { 
       const res = await fetch("/api/topics", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ name, description }),
       });
       const data = await res.json();
