@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import Link from "next/link";
 import { ErrorBoundary } from "./ErrorBoundary";
+import { fetchWithAuth } from "../utils/api";
 
 interface Topic {
   id: string;
@@ -32,17 +33,13 @@ export default function AdminDashboardClient({
   const [operationInProgress, setOperationInProgress] = useState<string | null>(
     null
   );
+  const [shouldRefresh, setShouldRefresh] = useState(false);
 
   const refreshTopics = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch("/api/topics", {
-        credentials: "include",
-      });
-      const data = await res.json();
-      if (res.ok && !data.error) {
-        setTopics(data.topics);
-      }
+      console.log('refresh');
+      setShouldRefresh(true);
     } catch (e) {
       console.log(e);
       toast.error("Error refreshing topics!");
@@ -66,6 +63,8 @@ export default function AdminDashboardClient({
           isLoading={isLoading}
           operationInProgress={operationInProgress}
           setOperationInProgress={setOperationInProgress}
+          shouldRefresh={shouldRefresh}
+          setShouldRefresh={setShouldRefresh}
         />
         <div className="mb-4">
           <Link
@@ -86,12 +85,16 @@ function TopicsList({
   isLoading,
   operationInProgress,
   setOperationInProgress,
+  shouldRefresh,
+  setShouldRefresh,
 }: {
   topics: Topic[];
   setTopics: (topics: Topic[]) => void;
   isLoading: boolean;
   operationInProgress: string | null;
   setOperationInProgress: (operation: string | null) => void;
+  shouldRefresh: boolean;
+  setShouldRefresh: (shouldRefresh: boolean) => void;
 }) {
   const [pagination, setPagination] = useState<PaginationInfo>({
     total: 0,
@@ -103,27 +106,28 @@ function TopicsList({
 
   useEffect(() => {
     fetchTopics();
-  }, [pagination.page]);
+  }, [pagination.page, shouldRefresh]);
 
-  const fetchTopics = async () => {
+  useEffect(() => {
+    if (shouldRefresh) {
+      setShouldRefresh(false);
+    }
+  }, [shouldRefresh, setShouldRefresh]);
+
+  const fetchTopics = useCallback(async () => {
     try {
-      const response = await fetch(
-        `/api/topics?page=${pagination.page}&limit=${pagination.limit}`,
-        {
-          credentials: "include",
-        }
-      );
-      const data = await response.json();
-      if (!response.ok || data.error) {
-        toast.error("Failed to fetch topics");
-        return;
-      }
+      const data = await fetchWithAuth<{
+        topics: Topic[];
+        pagination: PaginationInfo;
+      }>(`/api/topics?page=${pagination.page}&limit=${pagination.limit}`);
+      
       setTopics(data.topics);
       setPagination(data.pagination);
     } catch (err) {
       setError("An error occurred! Please try again.");
+      toast.error("Failed to fetch topics");
     }
-  };
+  }, [pagination.page, pagination.limit, setTopics]);
 
   const handlePageChange = (newPage: number) => {
     setPagination((prev) => ({ ...prev, page: newPage }));
@@ -132,23 +136,19 @@ function TopicsList({
   const toggleStatus = async (id: string, currentStatus: boolean) => {
     setOperationInProgress(`toggling-${id}`);
     try {
-      const res = await fetch("/api/topics", {
+      const data = await fetchWithAuth<{ success: boolean }>("/api/topics", {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify({ id, isActive: !currentStatus }),
       });
-      const data = await res.json();
-      if (res.ok && !data.error) {
-        setTopics(
-          topics.map((topic) =>
-            topic.id === id ? { ...topic, isActive: !currentStatus } : topic
-          )
-        );
-        toast.success(
-          `Topic ${!currentStatus ? "activated" : "deactivated"} successfully`
-        );
-      }
+      
+      setTopics(
+        topics.map((topic) =>
+          topic.id === id ? { ...topic, isActive: !currentStatus } : topic
+        )
+      );
+      toast.success(
+        `Topic ${!currentStatus ? "activated" : "deactivated"} successfully`
+      );
     } catch (e) {
       toast.error("Error updating topic status! Something went wrong.");
       console.log(e);
@@ -164,17 +164,14 @@ function TopicsList({
 
     setOperationInProgress(`deleting-${id}`);
     try {
-      const res = await fetch("/api/topics", {
+      await fetchWithAuth<{ success: boolean }>("/api/topics", {
         method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify({ id }),
       });
-      const data = await res.json();
-      if (res.ok && !data.error) {
-        setTopics(topics.filter((topic) => topic.id !== id));
-        toast.success("Topic deleted successfully");
-      }
+      
+      setTopics(topics.filter((topic) => topic.id !== id));
+      toast.success("Topic deleted successfully");
+      setShouldRefresh(true);
     } catch (e) {
       toast.error("Error deleting topic! Something went wrong.");
       console.log(e);

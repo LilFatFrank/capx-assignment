@@ -1,8 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { useAuth } from "@/contexts/AuthContext";
 import AdminDashboardClient from "../../components/AdminDashboardClient";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface Topic {
   id: string;
@@ -15,15 +14,9 @@ interface Topic {
 export default function AdminDashboard() {
   const [initialTopics, setInitialTopics] = useState<Topic[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const router = useRouter();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
 
   useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
-      router.push("/admin/login");
-      return;
-    }
-
     // Fetch initial topics
     const fetchTopics = async () => {
       try {
@@ -44,7 +37,7 @@ export default function AdminDashboard() {
     if (isAuthenticated) {
       fetchTopics();
     }
-  }, [isAuthenticated, authLoading, router]);
+  }, [isAuthenticated]);
 
   if (authLoading || isLoading) {
     return (
@@ -52,10 +45,6 @@ export default function AdminDashboard() {
         <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
       </div>
     );
-  }
-
-  if (!isAuthenticated) {
-    return null; // Will redirect in useEffect
   }
 
   return (

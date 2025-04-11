@@ -1,19 +1,11 @@
 "use client";
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import EntriesList from "@/components/EntriesList";
 
 export default function AllEntriesPage() {
   const [searchTerm, setSearchTerm] = useState("");
-  const router = useRouter();
-  const { isAuthenticated, isLoading } = useAuth();
-
-  useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      router.push("/admin/login");
-    }
-  }, [isAuthenticated, isLoading, router]);
+  const { isLoading, isAuthenticated } = useAuth();
 
   if (isLoading) {
     return (
@@ -23,9 +15,7 @@ export default function AllEntriesPage() {
     );
   }
 
-  if (!isAuthenticated) {
-    return null; // Will redirect in useEffect
-  }
+  if (!isAuthenticated) return;
 
   return (
     <div className="container mx-auto p-4">

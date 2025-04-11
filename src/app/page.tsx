@@ -1,4 +1,5 @@
 "use client";
+import SelfDestruct from "@/components/SelfDestruct";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
@@ -56,6 +57,9 @@ export default function LandingPage() {
 
   return (
     <div className="container mx-auto p-4">
+      <SelfDestruct duration={10000} onDestruct={() => console.log('component destroyed')}>
+        this will auto destruct
+      </SelfDestruct>
       <h1 className="text-2xl font-bold mb-6">Active Topics</h1>
       {topics.length === 0 ? (
         <p className="text-gray-500">No active topics available.</p>

@@ -28,3 +28,7 @@ body {
 * {
   scroll-behavior: smooth;
 }
+
+input {
+  @apply text-[#000000];
+}

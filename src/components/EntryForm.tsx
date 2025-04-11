@@ -37,65 +37,66 @@ export default function EntryForm({ topicId, topicName }: EntryFormProps) {
   const [isSuccess, setIsSuccess] = useState(false);
   const [isValidating, setIsValidating] = useState(false);
 
-  const validateForm = (): boolean => {
-    const newErrors: ValidationErrors = {};
+  // Add field-specific validation functions
+  const validateTelegramUsername = (value: string): string | null => {
+    if (!value) return "Telegram username is required";
+    if (!value.startsWith('@')) return "Telegram username must start with '@'";
+    if (!/^@[a-zA-Z0-9_]+$/.test(value)) return "Telegram username can only contain letters, numbers, and underscores after the '@'";
+    if (value.length > 32) return "Telegram username is too long";
+    return null;
+  };
 
-    // Telegram username validation
-    if (!formData.telegramUsername) {
-      newErrors.telegramUsername = "Telegram username is required";
-    } else if (!formData.telegramUsername.startsWith('@')) {
-      newErrors.telegramUsername = "Telegram username must start with '@'";
-    } else if (!/^@[a-zA-Z0-9_]+$/.test(formData.telegramUsername)) {
-      newErrors.telegramUsername =
-        "Telegram username can only contain letters, numbers, and underscores after the '@'";
-    } else if (formData.telegramUsername.length > 32) {
-      newErrors.telegramUsername = "Telegram username is too long";
+  const validatePlatformUsername = (value: string): string | null => {
+    if (!value) return "Platform username is required";
+    
+    // Match the validation logic from the API endpoint
+    const hasSpecialChars = /[^a-zA-Z0-9_\.]/.test(value);
+    const isInvalidLength = value.length < 3 || value.length > 20;
+    const startsWithNumber = /^[0-9]/.test(value);
+    
+    if (hasSpecialChars) return "Username can only contain letters, numbers, underscores, and dots";
+    if (isInvalidLength) return "Username must be between 3 and 20 characters";
+    if (startsWithNumber) return "Username cannot start with a number";
+    
+    return null;
+  };
+
+  const validateWalletAddress = (value: string): string | null => {
+    if (!value) return "Wallet address is required";
+    if (!isAddress(value)) return "Invalid Ethereum wallet address";
+    return null;
+  };
+
+  const validateDiscordUsername = (value: string): string | null => {
+    if (!value) return null; // Optional field
+    if (!/^[a-zA-Z0-9_#]+$/.test(value)) return "Discord username can only contain letters, numbers, underscores, and #";
+    if (value.length > 32) return "Discord username is too long";
+    return null;
+  };
+
+  const validateEmail = (value: string): string | null => {
+    if (!value) return "Email is required";
+    
+    // Basic email format validation
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+      return "Invalid email address";
     }
-
-    // Platform username validation
-    if (!formData.platformUsername) {
-      newErrors.platformUsername = "Platform username is required";
-    } else if (formData.platformUsername.length > 50) {
-      newErrors.platformUsername = "Platform username is too long";
+    
+    // Check for minimum 2 characters in the domain extension
+    const domainPart = value.split('@')[1];
+    const extension = domainPart.split('.').pop();
+    
+    if (!extension || extension.length < 2) {
+      return "Email domain extension must be at least 2 characters";
     }
-
-    // Wallet address validation
-    if (!formData.walletAddress) {
-      newErrors.walletAddress = "Wallet address is required";
-    } else if (!isAddress(formData.walletAddress)) {
-      newErrors.walletAddress = "Invalid Ethereum wallet address";
-    }
-
-    // Discord username validation (optional)
-    if (formData.discordUsername) {
-      if (!/^[a-zA-Z0-9_#]+$/.test(formData.discordUsername)) {
-        newErrors.discordUsername =
-          "Discord username can only contain letters, numbers, underscores, and #";
-      } else if (formData.discordUsername.length > 32) {
-        newErrors.discordUsername = "Discord username is too long";
-      }
-    }
-
-    // Email validation
-    if (!formData.email) {
-      newErrors.email = "Email is required";
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = "Invalid email address";
-    } else if (formData.email.length > 254) {
-      newErrors.email = "Email address is too long";
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    
+    if (value.length > 254) return "Email address is too long";
+    return null;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitError(null);
-
-    if (!validateForm()) {
-      return;
-    }
 
     setIsSubmitting(true);
     setIsValidating(true);
@@ -169,6 +170,36 @@ export default function EntryForm({ topicId, topicName }: EntryFormProps) {
     }
   };
 
+  const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    let error: string | null = null;
+    
+    // Validate the field that lost focus
+    switch (name) {
+      case 'telegramUsername':
+        error = validateTelegramUsername(value);
+        break;
+      case 'platformUsername':
+        error = validatePlatformUsername(value);
+        break;
+      case 'walletAddress':
+        error = validateWalletAddress(value);
+        break;
+      case 'discordUsername':
+        error = validateDiscordUsername(value);
+        break;
+      case 'email':
+        error = validateEmail(value);
+        break;
+    }
+    
+    // Update errors state with the validation result
+    setErrors(prev => ({
+      ...prev,
+      [name]: error || ''
+    }));
+  };
+
   if (isSuccess) {
     return (
       <ErrorBoundary>
@@ -208,6 +239,7 @@ export default function EntryForm({ topicId, topicName }: EntryFormProps) {
             name="telegramUsername"
             value={formData.telegramUsername}
             onChange={handleChange}
+            onBlur={handleBlur}
             className={`w-full p-2 border rounded ${
               errors.telegramUsername ? "border-red-500" : "border-gray-300"
             }`}
@@ -229,6 +261,7 @@ export default function EntryForm({ topicId, topicName }: EntryFormProps) {
             name="platformUsername"
             value={formData.platformUsername}
             onChange={handleChange}
+            onBlur={handleBlur}
             className={`w-full p-2 border rounded ${
               errors.platformUsername ? "border-red-500" : "border-gray-300"
             }`}
@@ -250,6 +283,7 @@ export default function EntryForm({ topicId, topicName }: EntryFormProps) {
             name="walletAddress"
             value={formData.walletAddress}
             onChange={handleChange}
+            onBlur={handleBlur}
             className={`w-full p-2 border rounded ${
               errors.walletAddress ? "border-red-500" : "border-gray-300"
             }`}
@@ -271,6 +305,7 @@ export default function EntryForm({ topicId, topicName }: EntryFormProps) {
             name="discordUsername"
             value={formData.discordUsername}
             onChange={handleChange}
+            onBlur={handleBlur}
             className={`w-full p-2 border rounded ${
               errors.discordUsername ? "border-red-500" : "border-gray-300"
             }`}
@@ -292,6 +327,7 @@ export default function EntryForm({ topicId, topicName }: EntryFormProps) {
             name="email"
             value={formData.email}
             onChange={handleChange}
+            onBlur={handleBlur}
             className={`w-full p-2 border rounded ${
               errors.email ? "border-red-500" : "border-gray-300"
             }`}
