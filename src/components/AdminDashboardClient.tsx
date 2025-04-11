@@ -136,7 +136,7 @@ function TopicsList({
   const toggleStatus = async (id: string, currentStatus: boolean) => {
     setOperationInProgress(`toggling-${id}`);
     try {
-      const data = await fetchWithAuth<{ success: boolean }>("/api/topics", {
+      await fetchWithAuth<{ success: boolean }>("/api/topics", {
         method: "PATCH",
         body: JSON.stringify({ id, isActive: !currentStatus }),
       });
