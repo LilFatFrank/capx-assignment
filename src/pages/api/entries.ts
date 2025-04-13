@@ -2,8 +2,8 @@ import { NextApiRequest, NextApiResponse } from "next";
 import { firestoreDB } from "@/utils/firebaseAdmin";
 import { z } from "zod";
 import { isAddress } from "viem";
-import { verifyToken } from "@/utils/auth";
 import { Query, DocumentData } from "firebase-admin/firestore";
+import { verifyToken } from "@/utils/auth";
 
 // Constants
 const DEFAULT_PAGE_SIZE = 10;
@@ -98,9 +98,15 @@ const getPaginationParams = (query: NextApiRequest['query']): PaginationParams =
 // Route Handlers
 const handleGetEntries = async (
   req: NextApiRequest,
-  res: NextApiResponse
+  res: NextApiResponse,
+  decodedToken: any
 ): Promise<void> => {
   try {
+    // Only allow authenticated users to access entries
+    if (!decodedToken) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
     const { page, limit, offset } = getPaginationParams(req.query);
     const topicId = req.query.topicId as string;
     const topicName = req.query.topicName as string;
@@ -247,18 +253,24 @@ const handlePostEntry = async (
 
 const handleDeleteEntry = async (
   req: NextApiRequest,
-  res: NextApiResponse
+  res: NextApiResponse,
+  decodedToken: any
 ): Promise<void> => {
   try {
+    if (!decodedToken) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
     const { id } = req.body;
     if (!id) {
       return res.status(400).json({ error: "Entry ID is required" });
     }
+
     await firestoreDB.collection("entries").doc(id).delete();
-    res.status(200).json({ message: "Entry deleted successfully" });
+    return res.status(200).json({ message: "Entry deleted successfully" });
   } catch (error) {
     console.error("Error deleting entry:", error);
-    res.status(500).json({ error: "Failed to delete entry" });
+    return res.status(500).json({ error: "Failed to delete entry" });
   }
 };
 
@@ -267,29 +279,16 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ): Promise<void> {
-  // Only verify token for admin operations
-  if (req.method !== "POST") {
-    const cookies = req.headers.cookie?.split(';').reduce((acc, cookie) => {
-      const [key, value] = cookie.trim().split('=');
-      acc[key] = value;
-      return acc;
-    }, {} as Record<string, string>);
-    
-    const token = cookies?.token;
-    const admin = verifyToken(token || "");
-
-    if (!admin) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-  }
+  // Verify token once for all authenticated routes
+  const decodedToken = await verifyToken(req);
 
   switch (req.method) {
     case "GET":
-      return handleGetEntries(req, res);
+      return handleGetEntries(req, res, decodedToken);
     case "POST":
       return handlePostEntry(req, res);
     case "DELETE":
-      return handleDeleteEntry(req, res);
+      return handleDeleteEntry(req, res, decodedToken);
     default:
       res.setHeader("Allow", ["GET", "POST", "DELETE"]);
       res.status(405).end(`Method ${req.method} Not Allowed`);

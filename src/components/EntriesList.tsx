@@ -3,7 +3,10 @@ import { useState, useEffect } from "react";
 import { Parser } from "json2csv";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { ErrorBoundary } from './ErrorBoundary';
+import { ErrorBoundary } from "./ErrorBoundary";
+import { useAuth } from "@/contexts/AuthContext";
+import Loader from "./Loader";
+import { redirect } from "next/navigation";
 
 interface Entry {
   id: string;
@@ -30,6 +33,7 @@ interface EntriesListProps {
 }
 
 export default function EntriesList({ topicId, topicName }: EntriesListProps) {
+  const { isLoading: isAuthLoading, isAuthenticated, getIdToken } = useAuth();
   const [entries, setEntries] = useState<Entry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -53,8 +57,10 @@ export default function EntriesList({ topicId, topicName }: EntriesListProps) {
   }, [topicName]);
 
   useEffect(() => {
-    fetchEntries();
-  }, [topicId, debouncedTopicName, pagination.page]);
+    if (isAuthenticated && !isAuthLoading) {
+      fetchEntries();
+    }
+  }, [topicId, debouncedTopicName, pagination.page, isAuthenticated, isAuthLoading]);
 
   const fetchEntries = async () => {
     setLoading(true);
@@ -72,9 +78,20 @@ export default function EntriesList({ topicId, topicName }: EntriesListProps) {
         queryParams.append("topicName", debouncedTopicName);
       }
 
+      
+      const idToken = await getIdToken();
+      
+      if (!idToken) {
+        throw new Error("Authentication token not available");
+      }
+
       const response = await fetch(`/api/entries?${queryParams}`, {
-        credentials: "include"
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${idToken}`,
+        },
       });
+      
       if (!response.ok) {
         throw new Error("Failed to fetch entries");
       }
@@ -95,16 +112,28 @@ export default function EntriesList({ topicId, topicName }: EntriesListProps) {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this entry? This action cannot be undone.")) {
+    if (
+      !confirm(
+        "Are you sure you want to delete this entry? This action cannot be undone."
+      )
+    ) {
       return;
     }
 
     setDeletingId(id);
     try {
+      const idToken = await getIdToken();
+      
+      if (!idToken) {
+        throw new Error("Authentication token not available");
+      }
+
       const response = await fetch("/api/entries", {
         method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${idToken}`,
+        },
         body: JSON.stringify({ id }),
       });
 
@@ -148,7 +177,10 @@ export default function EntriesList({ topicId, topicName }: EntriesListProps) {
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.setAttribute("href", url);
-      link.setAttribute("download", `Entries${topicName ? ` - ${topicName}` : ""}.csv`);
+      link.setAttribute(
+        "download",
+        `Entries${topicName ? ` - ${topicName}` : ""}.csv`
+      );
       link.style.visibility = "hidden";
       document.body.appendChild(link);
       link.click();
@@ -161,6 +193,18 @@ export default function EntriesList({ topicId, topicName }: EntriesListProps) {
       setExporting(false);
     }
   };
+
+  if (isAuthLoading) {
+    return (
+      <ErrorBoundary>
+        <Loader />
+      </ErrorBoundary>
+    );
+  }
+
+  if (!isAuthenticated) {
+    redirect("/admin/login");
+  }
 
   if (loading) {
     return (
@@ -225,7 +269,9 @@ export default function EntriesList({ topicId, topicName }: EntriesListProps) {
             onClick={handleExportCSV}
             disabled={exporting || entries.length === 0}
             className={`px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors ${
-              exporting || entries.length === 0 ? "opacity-50 cursor-not-allowed" : ""
+              exporting || entries.length === 0
+                ? "opacity-50 cursor-not-allowed"
+                : ""
             }`}
           >
             {exporting ? (
@@ -320,7 +366,9 @@ export default function EntriesList({ topicId, topicName }: EntriesListProps) {
                       onClick={() => handleDelete(entry.id)}
                       disabled={deletingId === entry.id}
                       className={`text-red-600 hover:text-red-900 ${
-                        deletingId === entry.id ? "opacity-50 cursor-not-allowed" : ""
+                        deletingId === entry.id
+                          ? "opacity-50 cursor-not-allowed"
+                          : ""
                       }`}
                     >
                       {deletingId === entry.id ? (
@@ -369,9 +417,13 @@ export default function EntriesList({ topicId, topicName }: EntriesListProps) {
                 </span>{" "}
                 to{" "}
                 <span className="font-medium">
-                  {Math.min(pagination.page * pagination.limit, pagination.total)}
+                  {Math.min(
+                    pagination.page * pagination.limit,
+                    pagination.total
+                  )}
                 </span>{" "}
-                of <span className="font-medium">{pagination.total}</span> results
+                of <span className="font-medium">{pagination.total}</span>{" "}
+                results
               </p>
             </div>
             <div>
@@ -387,21 +439,22 @@ export default function EntriesList({ topicId, topicName }: EntriesListProps) {
                 >
                   Previous
                 </button>
-                {Array.from({ length: pagination.totalPages }, (_, i) => i + 1).map(
-                  (pageNum) => (
-                    <button
-                      key={pageNum}
-                      onClick={() => handlePageChange(pageNum)}
-                      className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
-                        pageNum === pagination.page
-                          ? "z-10 bg-blue-50 border-blue-500 text-blue-600"
-                          : "bg-white border-gray-300 text-gray-500 hover:bg-gray-50"
-                      }`}
-                    >
-                      {pageNum}
-                    </button>
-                  )
-                )}
+                {Array.from(
+                  { length: pagination.totalPages },
+                  (_, i) => i + 1
+                ).map((pageNum) => (
+                  <button
+                    key={pageNum}
+                    onClick={() => handlePageChange(pageNum)}
+                    className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                      pageNum === pagination.page
+                        ? "z-10 bg-blue-50 border-blue-500 text-blue-600"
+                        : "bg-white border-gray-300 text-gray-500 hover:bg-gray-50"
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                ))}
                 <button
                   onClick={() => handlePageChange(pagination.page + 1)}
                   disabled={pagination.page === pagination.totalPages}

@@ -1,8 +1,10 @@
 import { getApps, initializeApp, cert, getApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
+import { getAuth } from 'firebase-admin/auth';
 
 // Initialize Firebase Admin only on the server side
 let firestoreDB: ReturnType<typeof getFirestore>;
+let auth: ReturnType<typeof getAuth>;
 
 if (typeof window === 'undefined') {
   try {
@@ -28,6 +30,7 @@ if (typeof window === 'undefined') {
     }
 
     firestoreDB = getFirestore(getApp());
+    auth = getAuth(getApp());
     console.log('Firebase Admin initialized successfully');
   } catch (error) {
     console.error('Error initializing Firebase Admin:', error);
@@ -38,4 +41,4 @@ if (typeof window === 'undefined') {
   }
 }
 
-export { firestoreDB };
+export { firestoreDB, auth };

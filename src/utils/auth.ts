@@ -1,36 +1,34 @@
-import jwt from 'jsonwebtoken';
-import crypto from 'crypto';
+import { NextApiRequest } from "next";
+import { auth } from "@/utils/firebaseAdmin";
 
-const JWT_SECRET = process.env.JWT_SECRET!;
-
-export interface AdminPayload {
-  username: string;
-}
-
-export function signToken(payload: AdminPayload): string {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: '1h' });
-}
-
-export function verifyToken(token: string): AdminPayload | null {
+export async function verifyToken(req: NextApiRequest) {
   try {
-    return jwt.verify(token, JWT_SECRET) as AdminPayload;
+    // Check for token in cookies
+    let token = req.cookies.token;
+    console.log("verifyToken: Cookie token:", token ? "Token exists" : "No token in cookies");
+    
+    // If no token in cookies, check Authorization header
+    if (!token) {
+      const authHeader = req.headers.authorization;
+      console.log("verifyToken: Authorization header:", authHeader);
+      
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        token = authHeader.substring(7); // Remove 'Bearer ' prefix
+        console.log("verifyToken: Extracted token from Authorization header");
+      }
+    }
+    
+    if (!token) {
+      console.log("verifyToken: No token found in cookies or Authorization header");
+      return null;
+    }
+
+    console.log("verifyToken: Verifying token");
+    const decodedToken = await auth.verifyIdToken(token);
+    console.log("verifyToken: Token verified successfully");
+    return decodedToken;
   } catch (error) {
+    console.error("Error verifying token:", error);
     return null;
   }
-}
-
-// Password hashing functions
-export function hashPassword(password: string): string {
-  // Generate a random salt
-  const salt = crypto.randomBytes(16).toString('hex');
-  // Hash the password with the salt
-  const hash = crypto.pbkdf2Sync(password, salt, 1000, 64, 'sha512').toString('hex');
-  // Return the salt and hash concatenated
-  return `${salt}:${hash}`;
-}
-
-export function verifyPassword(password: string, hashedPassword: string): boolean {
-  const [salt, hash] = hashedPassword.split(':');
-  const verifyHash = crypto.pbkdf2Sync(password, salt, 1000, 64, 'sha512').toString('hex');
-  return hash === verifyHash;
-}
+} 

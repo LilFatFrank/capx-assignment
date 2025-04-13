@@ -1,12 +1,12 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { firestoreDB } from "@/utils/firebaseAdmin";
-import { verifyToken } from "@/utils/auth";
 import { z } from "zod";
 import {
   CollectionReference,
   DocumentData,
   Query,
 } from "firebase-admin/firestore";
+import { verifyToken } from "@/utils/auth";
 
 // Types
 interface Topic {
@@ -117,8 +117,16 @@ const handleGetTopics = async (
   }
 };
 
-const handleCreateTopic = async (req: NextApiRequest, res: NextApiResponse) => {
+const handleCreateTopic = async (
+  req: NextApiRequest,
+  res: NextApiResponse,
+  decodedToken: any
+) => {
   try {
+    if (!decodedToken) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
     const validatedData = CreateTopicSchema.parse(req.body);
 
     const newTopic = {
@@ -141,8 +149,16 @@ const handleCreateTopic = async (req: NextApiRequest, res: NextApiResponse) => {
   }
 };
 
-const handleUpdateTopic = async (req: NextApiRequest, res: NextApiResponse) => {
+const handleUpdateTopic = async (
+  req: NextApiRequest,
+  res: NextApiResponse,
+  decodedToken: any
+) => {
   try {
+    if (!decodedToken) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
     const validatedData = UpdateTopicSchema.parse(req.body);
 
     await firestoreDB.collection("topics").doc(validatedData.id).update({
@@ -161,14 +177,39 @@ const handleUpdateTopic = async (req: NextApiRequest, res: NextApiResponse) => {
   }
 };
 
-const handleDeleteTopic = async (req: NextApiRequest, res: NextApiResponse) => {
+const handleDeleteTopic = async (
+  req: NextApiRequest,
+  res: NextApiResponse,
+  decodedToken: any
+) => {
   try {
+    if (!decodedToken) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
     const { id } = req.body;
     if (!id) {
       return res.status(400).json({ error: "Topic ID is required" });
     }
-    await firestoreDB.collection("topics").doc(id).delete();
-    res.status(200).json({ message: "Topic deleted successfully" });
+
+    // Delete all entries related to this topic
+    const entriesSnapshot = await firestoreDB.collection('entries')
+      .where('topicId', '==', id)
+      .get();
+
+    // Batch delete all related entries
+    const batch = firestoreDB.batch();
+    entriesSnapshot.docs.forEach((doc) => {
+      batch.delete(doc.ref);
+    });
+
+    // Delete the topic
+    batch.delete(firestoreDB.collection("topics").doc(id));
+
+    // Commit the batch
+    await batch.commit();
+
+    res.status(200).json({ message: "Topic and related entries deleted successfully" });
   } catch (error) {
     console.error("Error deleting topic:", error);
     res.status(500).json({ error: "Failed to delete topic" });
@@ -180,31 +221,17 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  // Only verify token for admin operations
-  if (req.method !== "GET") {
-    const cookies = req.headers.cookie?.split(";").reduce((acc, cookie) => {
-      const [key, value] = cookie.trim().split("=");
-      acc[key] = value;
-      return acc;
-    }, {} as Record<string, string>);
-
-    const token = cookies?.token;
-    const admin = verifyToken(token || "");
-
-    if (!admin) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-  }
+  const decodedToken = await verifyToken(req);
 
   switch (req.method) {
     case "GET":
       return handleGetTopics(req, res);
     case "POST":
-      return handleCreateTopic(req, res);
+      return handleCreateTopic(req, res, decodedToken);
     case "PATCH":
-      return handleUpdateTopic(req, res);
+      return handleUpdateTopic(req, res, decodedToken);
     case "DELETE":
-      return handleDeleteTopic(req, res);
+      return handleDeleteTopic(req, res, decodedToken);
     default:
       res.setHeader("Allow", ["GET", "POST", "PATCH", "DELETE"]);
       res.status(405).end(`Method ${req.method} Not Allowed`);

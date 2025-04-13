@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import Link from "next/link";
 import { ErrorBoundary } from "./ErrorBoundary";
-import { fetchWithAuth } from "../utils/api";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface Topic {
   id: string;
@@ -96,6 +96,7 @@ function TopicsList({
   shouldRefresh: boolean;
   setShouldRefresh: (shouldRefresh: boolean) => void;
 }) {
+  const { getIdToken } = useAuth();
   const [pagination, setPagination] = useState<PaginationInfo>({
     total: 0,
     page: 1,
@@ -116,11 +117,14 @@ function TopicsList({
 
   const fetchTopics = useCallback(async () => {
     try {
-      const data = await fetchWithAuth<{
-        topics: Topic[];
-        pagination: PaginationInfo;
-      }>(`/api/topics?page=${pagination.page}&limit=${pagination.limit}`);
-      
+      const response = await fetch(`/api/topics?page=${pagination.page}&limit=${pagination.limit}`,
+        {
+          headers: {
+            "Content-Type": "application/json"
+          }
+        }
+      );
+      const data = await response.json();
       setTopics(data.topics);
       setPagination(data.pagination);
     } catch (err) {
@@ -136,10 +140,17 @@ function TopicsList({
   const toggleStatus = async (id: string, currentStatus: boolean) => {
     setOperationInProgress(`toggling-${id}`);
     try {
-      await fetchWithAuth<{ success: boolean }>("/api/topics", {
+
+      const idToken = await getIdToken();
+      const response = await fetch("/api/topics", {
         method: "PATCH",
         body: JSON.stringify({ id, isActive: !currentStatus }),
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${idToken}`,
+        }
       });
+      await response.json();
       
       setTopics(
         topics.map((topic) =>
@@ -164,10 +175,16 @@ function TopicsList({
 
     setOperationInProgress(`deleting-${id}`);
     try {
-      await fetchWithAuth<{ success: boolean }>("/api/topics", {
+      const idToken = await getIdToken();
+      const response = await fetch("/api/topics", {
         method: "DELETE",
         body: JSON.stringify({ id }),
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${idToken}`,
+        }
       });
+      await response.json();
       
       setTopics(topics.filter((topic) => topic.id !== id));
       toast.success("Topic deleted successfully");
@@ -386,6 +403,7 @@ function AddTopicForm({
   isSubmitting: boolean;
   setOperationInProgress: (operation: string | null) => void;
 }) {
+  const { getIdToken } = useAuth();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [error, setError] = useState("");
@@ -398,10 +416,13 @@ function AddTopicForm({
     setSuccess(false);
 
     try {
+      const idToken = await getIdToken();
       const res = await fetch("/api/topics", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${idToken}`,
+        },
         body: JSON.stringify({ name, description }),
       });
       const data = await res.json();

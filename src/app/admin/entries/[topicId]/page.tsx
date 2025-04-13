@@ -1,17 +1,11 @@
 import { redirect } from "next/navigation";
 import { firestoreDB } from "@/utils/firebaseAdmin";
 import EntriesList from "../../../../components/EntriesList";
-import { isAuthenticated } from "@/utils/serverAuth";
 
 export default async function TopicEntriesPage(
   props: Awaited<ReturnType<() => Promise<{ params: { topicId: string } }>>>
 ) {
   const { params } = props;
-  const authenticated = await isAuthenticated();
-
-  if (!authenticated) {
-    redirect("/admin/login");
-  }
 
   const topicDoc = await firestoreDB
     .collection("topics")

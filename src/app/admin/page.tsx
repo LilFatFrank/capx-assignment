@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import AdminDashboardClient from "../../components/AdminDashboardClient";
 import { useAuth } from "@/contexts/AuthContext";
+import Loader from "@/components/Loader";
 
 interface Topic {
   id: string;
@@ -20,9 +21,13 @@ export default function AdminDashboard() {
     // Fetch initial topics
     const fetchTopics = async () => {
       try {
-        const response = await fetch("/api/topics", {
-          credentials: "include",
-        });
+        const response = await fetch("/api/topics",
+          {
+            headers: {
+              "Content-Type": "application/json"
+            }
+          }
+        );
         if (response.ok) {
           const data = await response.json();
           setInitialTopics(data.topics);
@@ -41,9 +46,7 @@ export default function AdminDashboard() {
 
   if (authLoading || isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
-      </div>
+      <Loader />
     );
   }
 

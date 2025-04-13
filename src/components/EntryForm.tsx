@@ -105,10 +105,6 @@ export default function EntryForm({ topicId, topicName }: EntryFormProps) {
       // First validate platform username
       const validationResponse = await fetch("/api/validate-platform-username", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
         body: JSON.stringify({ username: formData.platformUsername }),
       });
 
@@ -124,15 +120,14 @@ export default function EntryForm({ topicId, topicName }: EntryFormProps) {
       // If validation passes, submit the entry
       const response = await fetch("/api/entries", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
         body: JSON.stringify({
           ...formData,
           topicId,
           topicName
         }),
+        headers: {
+          "Content-Type": "application/json",
+        }
       });
 
       const data = await response.json();
